@@ -1,19 +1,22 @@
-create extension if not exists pgcrypto;
-create table if not exists public.tasks (
- id uuid primary key default gen_random_uuid(),
- user_id uuid not null references auth.users(id) on delete cascade,
- title text not null check(length(trim(title)) > 0),
- description text,
- due_at timestamptz,
- estimated_minutes integer check(estimated_minutes > 0),
- priority text not null default 'medium' check(priority in ('low','medium','high')),
- category text not null default 'general',
- completed boolean not null default false,
- created_at timestamptz not null default now()
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user','admin')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-create index if not exists tasks_user_id_idx on public.tasks(user_id);
-alter table public.tasks enable row level security;
-create policy "Users read own tasks" on public.tasks for select to authenticated using ((select auth.uid()) = user_id);
-create policy "Users create own tasks" on public.tasks for insert to authenticated with check ((select auth.uid()) = user_id);
-create policy "Users update own tasks" on public.tasks for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
-create policy "Users delete own tasks" on public.tasks for delete to authenticated using ((select auth.uid()) = user_id);
+CREATE TABLE IF NOT EXISTS tasks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL CHECK (length(trim(title)) > 0),
+  description TEXT,
+  due_at TIMESTAMPTZ,
+  estimated_minutes INTEGER CHECK (estimated_minutes > 0),
+  priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low','medium','high')),
+  category TEXT NOT NULL DEFAULT 'general',
+  completed BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS tasks_user_idx ON tasks(user_id,created_at DESC);
